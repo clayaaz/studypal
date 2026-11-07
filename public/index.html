@@ -60,7 +60,7 @@ const $=s=>document.querySelector(s),app=$('#app'),uid=()=>Math.random().toStrin
 let db=JSON.parse(localStorage.studypal||'null')||{subjects:[],model:'llama3.1:8b',xp:0};
 const save=()=>localStorage.studypal=JSON.stringify(db);
 const COL=['#c084fc','#f472b6','#60a5fa','#34d399','#fbbf24','#fb923c'];
-if(db.gmodel==='gemini-2.5-flash'){db.gmodel='gemini-3.8-flash';save()}
+if(db.gmodel==='gemini-2.5-flash'){db.gmodel='gemini-3.5-flash-lite';save()}
 db.log=db.log||{};
 let N=[],P=false,tab='path',st=null,all=false;
 const mkd=(n,o={})=>({id:uid(),name:n,cards:[],imports:[],src:[],kids:[],best:null,...o});
