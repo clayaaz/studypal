@@ -1,0 +1,208 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StudyPal</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{--bg:#f8f9fc;--card:#fff;--ink:#141a2e;--mute:#6b7690;--line:#e3e8f0;--pri:#c084fc;--pri2:#7c3aed;--ok:#22c55e;--bad:#ef4444;--r:22px}
+@media(prefers-color-scheme:dark){:root{--bg:#12131c;--card:#1c1e2b;--ink:#f1f3fa;--mute:#98a2bd;--line:#2c2f42}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:800 15px Nunito,system-ui,sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}#app{max-width:880px;margin:auto;padding:20px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.logo{font-size:22px;font-weight:900}.logo b{color:var(--pri2)}.logo span{display:inline-block;animation:float 3s ease-in-out infinite}
+h1{font-size:28px;margin:0}.row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.btn{background:var(--card);border:2px solid var(--line);border-radius:999px;padding:10px 18px;transition:.15s}
+.btn:hover{transform:translateY(-2px);border-color:var(--pri)}.btn:active{transform:scale(.96)}
+.dark{background:#141a2e;color:#fff;border-color:#141a2e}.pri{background:var(--pri2);color:#fff;border-color:var(--pri2)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin-top:20px}
+.deck{background:var(--card);border-radius:var(--r);border:2px solid var(--line);overflow:hidden;cursor:pointer;position:relative;transition:.2s}
+.deck:hover{transform:translateY(-6px) rotate(-1deg);box-shadow:0 14px 30px #7c3aed22}
+.deck i{display:block;height:52px}.deck div{padding:14px 16px 18px}.deck small{color:var(--mute);font-weight:700}
+.x.e{right:42px}.x{position:absolute;top:8px;right:8px;background:#fff9;border:0;border-radius:50%;width:28px;height:28px;opacity:0;transition:.2s}.deck:hover .x{opacity:1}
+.empty{text-align:center;padding:60px 0;color:var(--mute)}.empty .big{font-size:80px;display:block;animation:float 3s ease-in-out infinite}
+.tabs{display:flex;gap:22px;border-bottom:2px solid var(--line);margin:18px 0}.tabs button{background:none;border:0;padding:8px 0;color:var(--mute);font-size:16px;position:relative}
+.tabs .on{color:var(--ink)}.tabs .on:after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:3px;background:var(--pri2);border-radius:3px}
+.path{padding:10px 0 30px}.node{display:flex;align-items:center;gap:16px;margin:14px 0;cursor:pointer}
+.hex{width:64px;height:64px;display:grid;place-items:center;font-size:26px;background:#dde3ee;clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%);transition:.2s}
+.node:hover .hex{transform:scale(1.18) rotate(8deg)}.hex.go{background:var(--ok)}.hex.cur{background:var(--pri);animation:pulse 1.6s infinite}
+.node b{display:block}.node small{color:var(--mute)}
+.list{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:14px 18px;margin-bottom:10px}
+.list small{display:block;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);color:var(--mute)}
+.imp{display:inline-flex;gap:10px;align-items:center;background:var(--card);border:2px solid var(--line);border-radius:18px;padding:14px 18px;margin:0 10px 10px 0}
+/* study */
+.bar{height:14px;background:var(--line);border-radius:9px;overflow:hidden;margin:12px 0}.bar i{display:block;height:100%;background:var(--pri);border-radius:9px;transition:width .5s cubic-bezier(.3,1.5,.5,1)}
+.stats{display:flex;gap:18px;align-items:center;background:var(--card);border:2px solid var(--line);border-radius:999px;padding:10px 20px;width:max-content;margin:14px auto}
+.q{background:var(--card);border:3px solid var(--pri);border-radius:var(--r);padding:28px;margin:18px 0;font-size:20px}.q small{color:var(--ok);display:block;margin-bottom:12px;font-size:13px}
+.opt{display:block;width:100%;background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:12px;font-size:16px;transition:.15s}
+.opt:hover:not(:disabled){border-color:var(--pri);transform:scale(1.015)}.opt.ok{background:#dcfce7;border-color:var(--ok);color:#14532d;animation:bounce .5s}
+.opt.no{background:#fee2e2;border-color:var(--bad);color:#7f1d1d;animation:shake .4s}.opt.gone{opacity:.25;text-decoration:line-through;pointer-events:none}
+.acts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}.acts .btn{border-radius:999px;padding:12px}
+.next{margin-top:16px;width:100%;padding:16px;font-size:17px;animation:pop .3s}
+.sheet{position:fixed;inset:0;background:#0006;display:flex;align-items:flex-end;justify-content:center;z-index:9;animation:fade .2s}
+.sheet>div{background:var(--card);border-radius:28px 28px 0 0;padding:26px;width:min(680px,100%);max-height:85vh;overflow:auto;animation:up .35s cubic-bezier(.2,1.2,.4,1)}
+.sheet.mid{align-items:center}.sheet.mid>div{border-radius:28px;max-width:440px;margin:20px}
+.sheet ul{padding-left:20px}input,select{font:inherit;width:100%;padding:12px 14px;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--ink);margin:8px 0}
+.dots span{display:inline-block;width:10px;height:10px;margin:3px;border-radius:50%;background:var(--pri);animation:bounce .8s infinite}.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+.spin{width:44px;height:44px;border:5px solid var(--line);border-top-color:var(--pri2);border-radius:50%;animation:rot 1s linear infinite;margin:10px auto}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#141a2e;color:#fff;padding:12px 22px;border-radius:999px;z-index:20;animation:up .3s}
+.crumb{color:var(--mute);margin:-4px 0 10px}.crumb a{cursor:pointer;color:var(--pri2)}.crumb a:hover{text-decoration:underline}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}.tile{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:18px;text-align:center;transition:.2s}.tile:hover{transform:translateY(-4px) rotate(-1deg)}.tile b{display:block;font-size:30px}.tile small{color:var(--mute)}
+.bars{display:flex;gap:6px;height:150px;background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:16px 14px 10px}.col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}.col i{width:100%;background:var(--pri);border-radius:8px 8px 4px 4px;min-height:4px;transform-origin:bottom;animation:grow .7s cubic-bezier(.3,1.5,.5,1) both}.col small{font-size:10px;color:var(--mute);margin-top:4px}
+.mb{display:flex;height:14px;border-radius:9px;overflow:hidden;background:var(--line);margin-top:10px}.mb i{transition:width .6s}.mb .m{background:var(--ok)}.mb .l{background:#fbbf24}@keyframes grow{from{transform:scaleY(0)}}
+.conf{position:fixed;top:-30px;font-size:26px;animation:fall 2.5s linear forwards;pointer-events:none}
+.anim .pop{animation:pop .45s both}.anim .pop:nth-child(2){animation-delay:.07s}.anim .pop:nth-child(3){animation-delay:.14s}.anim .pop:nth-child(4){animation-delay:.21s}.anim .pop:nth-child(n+5){animation-delay:.28s}
+@keyframes pop{from{opacity:0;transform:translateY(18px) scale(.94)}}@keyframes float{50%{transform:translateY(-8px)}}@keyframes fade{from{opacity:0}}@keyframes up{from{transform:translateY(40px);opacity:0}}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}@keyframes bounce{50%{transform:translateY(-8px)}}@keyframes rot{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{box-shadow:0 0 0 12px #c084fc33}}@keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
+</style></head><body><div id="app"></div>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const $=s=>document.querySelector(s),app=$('#app'),uid=()=>Math.random().toString(36).slice(2,9);
+let db=JSON.parse(localStorage.studypal||'null')||{subjects:[],model:'llama3.1:8b',xp:0};
+const save=()=>localStorage.studypal=JSON.stringify(db);
+const COL=['#c084fc','#f472b6','#60a5fa','#34d399','#fbbf24','#fb923c'];
+if(db.gmodel==='gemini-2.5-flash'){db.gmodel='gemini-3.8-flash';save()}
+db.log=db.log||{};
+let N=[],P=false,tab='path',st=null,all=false;
+const mkd=(n,o={})=>({id:uid(),name:n,cards:[],imports:[],src:[],kids:[],best:null,...o});
+function mig(d){if(d.topics){d.kids=(d.kids||[]).concat(d.topics);delete d.topics}d.cards=d.cards||[];d.imports=d.imports||[];d.src=d.src||[];d.kids=d.kids||[];d.kids.forEach(mig)}
+db.subjects.forEach(mig);
+const flat=d=>[d,...d.kids.flatMap(flat)],pack=x=>x.cards.map(c=>({...c,_r:c,_s:x.src,_x:x.ctx})),allCards=d=>flat(d).flatMap(x=>x.cards),nCards=d=>allCards(d).length;
+const root=()=>db.subjects.find(s=>s.id==N[0]),subj=root;
+const cur=()=>{let d=root();for(const id of N.slice(1))d=d&&d.kids.find(k=>k.id==id);return d};
+const chain=()=>{let d=root();const a=[d];for(const id of N.slice(1)){d=d.kids.find(k=>k.id==id);a.push(d)}return a};
+const D=id=>flat(root()).find(x=>x.id==id),par=id=>flat(root()).find(x=>x.kids.some(k=>k.id==id));
+const esc=t=>String(t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const md=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/^[-*•] (.+)$/gm,'<li>$1</li>').replace(/<\/li>\n/g,'</li>').replace(/(<li>.*?<\/li>)+/g,m=>'<ul>'+m+'</ul>').replace(/\n/g,'<br>');
+const shuf=a=>a.map(x=>[Math.random(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3000)}
+function modal(h,cls=''){closeM();const m=document.createElement('div');m.id='m';m.className='sheet '+cls;m.innerHTML='<div>'+h+'</div>';m.onclick=e=>{if(e.target===m)closeM()};document.body.appendChild(m)}
+const closeM=()=>$('#m')?.remove(),busy=t=>modal(`<div class="spin"></div><p style="text-align:center">${t}</p>`,'mid');
+const OLL=()=>db.ollamaUrl||'http://localhost:11434';
+async function ai(prompt,json){
+ if(db.provider=='gemini'){
+  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:db.gmodel||'gemini-3.8-flash',key:db.gkey,prompt,json})});
+  const d=await r.json();if(d.error)throw Error(d.error);return d.text}
+ let r;try{r=await fetch(OLL()+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:db.model,prompt,stream:false,format:json?'json':undefined,options:{temperature:.4}})})}
+ catch{throw Error('Cannot reach Ollama at '+OLL()+'. Is it running? (On a hosted site see README: OLLAMA_ORIGINS)')}
+ const d=await r.json();if(d.error)throw Error(d.error);return d.response}
+async function pdfText(f){const p=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;let t='';for(let i=1;i<=p.numPages;i++)t+=(await(await p.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ')+' ';return t}
+async function build(t,text,title){
+ text=text.replace(/\s+/g,' ').trim();const ch=[];t.src=t.src||[];let got=0;
+ for(let i=0;i<text.length&&ch.length<6;i+=5000)ch.push(text.slice(i,i+5000));
+ for(let n=0;n<ch.length;n++){busy(`Writing cards ${n+1}/${ch.length}… 🪄`);
+  try{const o=JSON.parse(await ai(`You write study flashcards. From the text below return JSON: {"cards":[{"q":"question","a":"short correct answer (max 8 words)","w":["plausible wrong answer","another plausible wrong answer"]}]} with 8 cards.\nText:\n${ch[n]}`,true));
+   const cards=(o.cards||[]).filter(k=>k.q&&k.a&&Array.isArray(k.w)&&k.w.length>=2);
+   if(cards.length){const k=t.src.push(ch[n].slice(0,1500))-1;cards.forEach(c=>c.k=k);t.cards.push(...cards);got+=cards.length}
+  }catch(e){if(/Ollama|model|Gemini|API/i.test(e.message))throw e}}
+ if(!got)throw Error('Could not generate cards - try a larger model')}
+async function doImport(kind){
+ const t=cur();if(!t)return;let text,title;
+ try{if(kind==='pdf'){const f=$('#f').files[0];if(!f)return toast('Choose a PDF first');busy('Reading PDF… 📄');text=await pdfText(f);title=f.name.replace(/\.pdf$/i,'')}
+ else{const u=$('#yt').value.trim();if(!u)return toast('Paste a YouTube link first');busy('Fetching transcript… 🎬');const d=await(await fetch('/api/yt?url='+encodeURIComponent(u))).json();if(d.error)throw Error(d.error);text=d.text;title=d.title}
+  if(text.length<200)throw Error('Not enough text found');
+  await build(t,text,title);t.imports=t.imports||[];t.imports.push({id:uid(),type:kind,title});save();closeM();toast('Cards ready! 🎉')
+ }catch(e){closeM();toast('⚠️ '+e.message)}r(1)}
+function addMat(){modal(`<h2>Add material</h2><p>Upload a PDF</p><input type=file id=f accept=".pdf"><button class="btn pri" data-a=imp data-v=pdf>Generate from PDF</button><p>…or paste a YouTube link</p><input id=yt placeholder="https://youtube.com/watch?v=…"><button class="btn pri" data-a=imp data-v=yt>Generate from video</button>`,'mid')}
+/* study */
+function startStudy(cards,title,target){
+ cards=shuf(cards).map(c=>({...c,o:shuf([c.a,...c.w.slice(0,2)])}));
+ st={cards,title,target,i:0,hearts:9,keys:5,xp:0,ok:0,ans:null,bad:[],gone:[],rev:false};r(1)}
+const act={
+ add(){modal(`<h2>New subject 📚</h2><input id=nm placeholder="e.g. Business Research" autofocus><button class="btn pri" data-a=mk>Create</button>`,'mid');setTimeout(()=>$('#nm')?.focus(),50)},
+ mk(){const n=$('#nm').value.trim();if(!n)return;db.subjects.push(mkd(n,{color:COL[db.subjects.length%COL.length]}));save();closeM();r(1)},
+ open(v){N=[v];tab='path';all=false;r(1)},home(){N=[];st=null;P=false;r(1)},
+ into(v){N.push(v);tab='mat';all=false;r(1)},up(){N.pop();all=false;r(1)},goto(v){N=N.slice(0,+v+1);all=false;r(1)},tab(v){tab=v;r(1)},
+ del(v,e){if(confirm('Delete this subject?')){db.subjects=db.subjects.filter(s=>s.id!==v);save();r(1)}},
+ addmat:addMat,imp(v){doImport(v)},viewall(){all=!all;r()},
+ deck(){const d=cur();if(!nCards(d))return toast('Add material or cards first 🌱');startStudy(flat(d).flatMap(pack),d.name,{d})},
+ study(v){const x=D(v);if(!nCards(x))return act.into(v);startStudy(flat(x).flatMap(pack),x.name,{d:x})},
+ studyown(){const d=cur();startStudy(pack(d),d.name,{d,own:1})},
+ quit(){st=null;r(1)},
+ pick(v){if(st.ans!=null||st.gone.includes(+v)||st.bad.includes(+v))return;const c=st.cards[st.i];
+  if(c.o[v]===c.a){st.ans=+v;st.xp+=10;st.ok++;rec(c,!st.bad.length,10);save();r();pop()}else{st.bad.push(+v);st.hearts=Math.max(0,st.hearts-1);r();if(!st.hearts){toast('Out of hearts! 💔');st.i=st.cards.length;setTimeout(r,900)}}},
+ hint(){if(st.ans!=null||!st.keys)return toast(st.keys?'Already answered':'No keys left 🗝️');const c=st.cards[st.i];
+  const w=c.o.map((o,i)=>i).filter(i=>c.o[i]!==c.a&&!st.gone.includes(i)&&!st.bad.includes(i));if(!w.length)return toast('No more hints for this one');st.gone.push(w[0]);st.keys--;r()},
+ reveal(){if(st.ans!=null)return;const c=st.cards[st.i];st.rev=true;st.ans=c.o.indexOf(c.a);rec(c,false,0);save();r()},
+ explain(){modal(`<h2>Explain 💡</h2><button class="btn opt" data-a=ex data-v=5>🧒 Explain it to me like I'm 5</button><button class="btn opt" data-a=ex data-v=deep>🔭 Go in depth</button>`)},
+ async ex(v){const c=st.cards[st.i];
+  modal(`<h2>${v==5?'🧒 Like I\'m 5':'🔭 In depth'}</h2><p><b>${esc(c.q)}</b> → ${esc(c.a)}</p><div class="dots"><span></span><span></span><span></span></div>`);
+  const p=v==5?`Explain this to a 5-year-old using a simple, fun analogy. Max 80 words, no jargon.\nQuestion: ${c.q}\nAnswer: ${c.a}`:
+  `Explain this in depth for a university student. Use a short intro, 3-5 bullet points starting with "- " (bold key terms with **), a real-world example, and why it matters. Max 250 words.\nQuestion: ${c.q}\nAnswer: ${c.a}\nSource context: ${c._s?.[c.k]??c._x??''}`;
+  try{const a=await ai(p);if($('#m'))$('#m>div').innerHTML=`<h2>${v==5?'🧒 Like I\'m 5':'🔭 In depth'}</h2><p><b>${esc(c.q)}</b></p><div class=pop>${md(a)}</div><button class="btn" data-a=explain>← Back</button>`}catch(e){closeM();toast('⚠️ '+e.message)}},
+ next(){st.i++;st.ans=null;st.bad=[];st.gone=[];st.rev=false;r(1)},
+ skip(v){const n=st.i+ +v;if(n<0||n>=st.cards.length)return;st.i=n;st.ans=null;st.bad=[];st.gone=[];st.rev=false;r(1)},
+ done(){const t=st.target,k=t&&(t.own?'ownBest':'best');if(t)t.d[k]=Math.max(t.d[k]||0,st.ok);save();st=null;r(1)},
+ async cfg(){let m=[];try{m=(await(await fetch(OLL()+'/api/tags')).json()).models.map(x=>x.name)}catch{}
+  modal(`<h2>⚙️ Local AI model</h2><p style="color:var(--mute)">Pick any model you've pulled in Ollama.</p><input id=md list=ml value="${db.model}"><datalist id=ml>${m.map(x=>`<option>${x}`).join('')}</datalist><button class="btn pri" data-a=savecfg>Save</button>`,'mid')},
+ savecfg(){db.model=$('#md').value.trim()||'llama3.1:8b';save();closeM();toast('Model: '+db.model)}};
+function pop(){for(let i=0;i<24;i++){const e=document.createElement('div');e.className='conf';e.textContent=['⭐','✨','💜','🎉'][i%4];e.style.left=Math.random()*100+'vw';e.style.animationDelay=Math.random()*.6+'s';document.body.appendChild(e);setTimeout(()=>e.remove(),3200)}}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(t){e.stopPropagation();act[t.dataset.a]?.(t.dataset.v,e)}});
+const top_=`<div class=top><div class=logo><span>🐙</span> Study<b>Pal</b></div><div class=row style="gap:8px"><button class=btn data-a=prog>📊 Progress</button><button class=btn data-a=cfg>⚙️</button></div></div>`;
+function r(anim){app.className=anim?'anim':'';
+ if(st)return app.innerHTML=study();
+ if(P)return app.innerHTML=prog();
+ const d=N.length&&cur();if(!d){N=[];return app.innerHTML=home()}
+ const ch=chain(),isR=N.length==1;
+ app.innerHTML=top_+`<div class=crumb><a data-a=home>Subjects</a> › ${ch.map((x,i)=>i==ch.length-1?`<b>${esc(x.name)}</b>`:`<a data-a=goto data-v=${i}>${esc(x.name)}</a>`).join(' › ')}</div>
+ <div class=row><div class=row><button class=btn data-a=up>←</button><h1>${esc(d.name)}</h1></div><div class=row style="gap:8px">${isR?`<button class=btn data-a=exp data-v=${d.id}>📤 Export</button>`:''}<button class=btn data-a=rn data-v=${d.id}>✏️</button>${isR?'':`<button class=btn data-a=dsub data-v=${d.id}>🗑</button>`}<button class="btn dark" data-a=deck>🎮 Study</button></div></div>
+ <div class=tabs><button class="${tab=='path'?'on':''}" data-a=tab data-v=path>Path</button><button class="${tab=='mat'?'on':''}" data-a=tab data-v=mat>Materials</button></div>`+(tab=='path'?path(d):mat(d,ch[0]))}
+function home(){return top_+`<div class=row><h1>My subjects</h1><div class=row style="gap:8px"><button class=btn data-a=impf>📥 Import</button>${db.subjects.length?'<button class=btn data-a=expall>📤 Export all</button>':''}<button class="btn dark" data-a=add>＋ Add subject</button></div></div>`+(db.subjects.length?`<div class=grid>${db.subjects.map(s=>`<div class="deck pop" data-a=open data-v=${s.id}><i style="background:${s.color}"></i><div>${esc(s.name)}<br><small>${nCards(s)} cards</small></div><button class="x e" data-a=exp data-v=${s.id} title="Export">⬇️</button><button class=x data-a=del data-v=${s.id} title="Delete">🗑</button></div>`).join('')}</div>`:`<div class=empty><span class=big>🐙</span><h2>What shall we study?</h2><p>Create your first subject to begin.</p></div>`)+`<p style="color:var(--mute);margin-top:30px">⭐ ${xpAll()} XP earned</p>`}
+function path(d){
+ const it=[...(d.cards.length?[{id:d.id,a:'studyown',n:d.name+' · cards',c:d.cards.length,b:d.ownBest,own:1}]:[]),...d.kids.map(k=>({id:k.id,a:'study',n:k.name,c:nCards(k),b:k.best,k:k.kids.length}))];
+ const btns=`<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn pri" data-a=addmat>＋ Add material</button><button class=btn data-a=newsub>＋ New subdeck</button></div>`;
+ if(!it.length)return`<div class=empty><span class=big>🌱</span><h2>This deck is empty</h2><p>Add a PDF or YouTube video, or create a subdeck inside it.</p>${btns}</div>`;
+ const cu=it.findIndex(x=>x.b==null&&x.c);
+ return`<div class=path>${it.map((x,i)=>`<div class="node pop" style="margin-left:${[0,50,100,50][i%4]}px" data-a=${x.a} data-v=${x.id}><div class="hex ${x.b!=null?'go':i==cu?'cur':''}">${x.b!=null?'✓':x.c?'🌱':'＋'}</div><div><b>${esc(x.n)}</b><small>${x.c} cards${x.k?` · ${x.k} subdecks`:''}${x.b!=null?` · best ${x.b}/${x.c}`:''}</small></div>${x.own?'':`<button class=btn data-a=into data-v=${x.id} style="padding:6px 12px">Open</button>`}</div>`).join('')}</div>`+btns}
+function mat(d,R){const cs=d.cards;
+ return`<div class=row><h3>Subdecks (${d.kids.length})</h3><button class=btn data-a=newsub>＋ New subdeck</button></div>`+(d.kids.length?`<div class=grid style="margin-top:12px">${d.kids.map(k=>`<div class="deck pop" data-a=into data-v=${k.id}><i style="background:${R.color}"></i><div>${esc(k.name)}<br><small>${nCards(k)} cards${k.kids.length?` · ${k.kids.length} subdecks`:''}</small></div><button class="x e" data-a=rn data-v=${k.id} title="Rename">✏️</button><button class=x data-a=dsub data-v=${k.id} title="Delete">🗑</button></div>`).join('')}</div>`:'<p style="color:var(--mute)">No subdecks yet.</p>')+
+ `<h3>Cards (${cs.length})</h3>`+(cs.slice(0,all?999:5).map(c=>`<div class="list pop"><b>${esc(c.q)}</b><small>${esc(c.a)}</small></div>`).join('')||'<p style="color:var(--mute)">No cards directly in this deck yet.</p>')+(cs.length>5?`<div style="text-align:center"><button class=btn data-a=viewall>${all?'Show less ▲':'View all ▼'}</button></div>`:'')+
+ `<div class=row><h3>Imports (${d.imports.length})</h3><button class="btn pri" data-a=addmat>＋ Add material</button></div>${d.imports.map(i=>`<div class="imp pop">${i.type=='pdf'?'📄':'🎬'} ${esc(i.title)}</div>`).join('')||'<p style="color:var(--mute)">No imports yet.</p>'}`}
+function study(){const n=st.cards.length;
+ if(st.i>=n){setTimeout(pop,100);return`<div class=empty><span class=big>${st.hearts?'🏆':'💔'}</span><h1>${st.hearts?'Deck complete!':'Try again!'}</h1><p>${st.ok}/${n} correct · +${st.xp} XP</p><button class="btn pri" data-a=done>Back to path</button></div>`}
+ const c=st.cards[st.i];
+ return`<div class=row><button class=btn data-a=quit>✕</button><b>${esc(st.title)}</b><span></span></div><div class=bar><i style="width:${st.i/n*100}%"></i></div>
+ <div class=row><button class=btn data-a=skip data-v=-1>⏮</button><div class=stats style="margin:0">🗝️ ${st.keys} <span style="color:var(--bad)">❤️ ${st.hearts}</span> <span style="background:var(--line);padding:4px 12px;border-radius:99px">+${st.xp} XP</span></div><button class=btn data-a=skip data-v=1>⏭</button></div>
+ <div class="q pop"><small>🌱 Card ${st.i+1} of ${n}</small>${esc(c.q)}</div>
+ ${c.o.map((o,i)=>`<button class="opt pop ${st.ans==i?'ok':''} ${st.bad.includes(i)?'no':''} ${st.gone.includes(i)?'gone':''}" data-a=pick data-v=${i} ${st.ans!=null?'disabled':''}>${esc(o)}</button>`).join('')}
+ ${st.ans!=null?`<button class="btn pri next" data-a=next>${st.i+1<n?'Continue →':'Finish 🎉'}</button>`:''}
+ <div class=acts><button class=btn data-a=hint>🗝️ Hint</button><button class=btn data-a=reveal>🔍 Reveal</button><button class=btn data-a=explain>🪄 Explain</button></div>`}
+const dl=(o,n)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(o,null,1)],{type:'application/json'}));a.download=n+'.studypal.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('Exported ✅')};
+act.exp=v=>{const s=db.subjects.find(s=>s.id==v);dl({studypal:1,subjects:[s]},s.name.replace(/[^\w-]+/g,'_'))};
+act.expall=()=>dl({studypal:1,subjects:db.subjects},'studypal-backup');
+act.impf=()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=async()=>{try{
+ const d=JSON.parse(await i.files[0].text()),L=d.subjects||(Array.isArray(d)?d:[d]);let n=0;
+ const fresh=x=>{mig(x);x.id=uid();x.cards=x.cards.filter(c=>c.q&&c.a&&Array.isArray(c.w)&&c.w.length>=2);x.kids.forEach(fresh)};
+ for(const s of L){if(!s||!s.name)continue;fresh(s);s.color=s.color||COL[0];if(db.subjects.some(x=>x.name===s.name))s.name+=' (imported)';db.subjects.push(s);n++}
+ save();toast(n?`Imported ${n} subject${n>1?'s':''} 🎉`:'No valid subjects found');r(1)}catch{toast('⚠️ Not a valid StudyPal file')}};i.click()};
+const dkey=o=>{const d=new Date();d.setDate(d.getDate()-o);return d.toLocaleDateString('en-CA')};
+const rec=(c,first,xp)=>{const o=c._r,s=root();if(!o||!s)return;o.s=(o.s||0)+1;if(first)o.c=(o.c||0)+1;s.log=s.log||{};const d=s.log[dkey(0)]=s.log[dkey(0)]||{n:0,ok:0,xp:0};d.n++;if(first)d.ok++;d.xp+=xp};
+const lvl=c=>!(c.s||0)?0:(c.c||0)>=2&&(c.c||0)/c.s>=.7?2:1;
+const xpOf=s=>Object.values(s.log||{}).reduce((n,d)=>n+d.xp,0),xpAll=()=>db.subjects.reduce((n,s)=>n+xpOf(s),0);
+const logs=()=>{const L={};db.subjects.forEach(s=>{for(const k in s.log||{}){const a=L[k]=L[k]||{n:0,ok:0,xp:0},b=s.log[k];a.n+=b.n;a.ok+=b.ok;a.xp+=b.xp}});return L};
+function prog(){
+ const L=logs(),day=k=>L[k]||{n:0,ok:0,xp:0};let tot=0,ok=0,mast=0;for(const k in L){tot+=L[k].n;ok+=L[k].ok}
+ db.subjects.forEach(s=>allCards(s).forEach(c=>{if(lvl(c)==2)mast++}));
+ let streak=0,o=day(dkey(0)).n?0:1;while(day(dkey(o)).n){streak++;o++}
+ const days=[...Array(14).keys()].map(i=>{const k=dkey(13-i);return{k,...day(k)}}),mx=Math.max(1,...days.map(d=>d.n));
+ return top_+`<div class=row><div class=row><button class=btn data-a=home>←</button><h1>📊 Progress</h1></div></div>
+ <div class=tiles><div class="tile pop"><b>🔥 ${streak}</b><small>day streak</small></div><div class="tile pop"><b>⭐ ${xpAll()}</b><small>total XP</small></div><div class="tile pop"><b>🃏 ${tot}</b><small>cards answered</small></div><div class="tile pop"><b>🎯 ${tot?Math.round(ok/tot*100):0}%</b><small>first-try accuracy</small></div><div class="tile pop"><b>✅ ${mast}</b><small>cards mastered</small></div></div>
+ <h3>Last 14 days</h3><div class=bars>${days.map(d=>`<div class=col title="${d.k}: ${d.n} cards"><i style="height:${Math.max(3,d.n/mx*80)}%"></i><small>${d.k.slice(8)}</small></div>`).join('')}</div>
+ <h3>Mastery by subject</h3>`+(db.subjects.map(s=>{const cs=allCards(s),M=[0,0,0];cs.forEach(c=>M[lvl(c)]++);const n=cs.length||1;
+  return`<div class="list pop"><div class=row><b>${esc(s.name)}</b><span>${Math.round(M[2]/n*100)}% mastered</span></div><div class=mb><i class=m style="width:${M[2]/n*100}%"></i><i class=l style="width:${M[1]/n*100}%"></i></div><small>✅ ${M[2]} mastered · 🟡 ${M[1]} learning · ⚪ ${M[0]} new · ⭐ ${xpOf(s)} XP</small></div>`}).join('')||'<p style="color:var(--mute)">No subjects yet.</p>')+
+ `<p style="color:var(--mute)">Progress is saved with each subject, so exporting a subject exports its progress too. A card is mastered after 2+ first-try correct answers at 70%+ accuracy.</p>`}
+act.prog=()=>{N=[];st=null;P=true;r(1)};
+act.newsub=()=>{modal(`<h2>New subdeck 🌱</h2><input id=nm placeholder="e.g. Supply and demand"><button class="btn pri" data-a=mksub>Create</button>`,'mid');setTimeout(()=>$('#nm')?.focus(),50)};
+act.mksub=()=>{const n=$('#nm').value.trim();if(!n)return;const t=mkd(n);cur().kids.push(t);save();closeM();N.push(t.id);tab='mat';r(1)};
+act.rn=v=>{const t=D(v);modal(`<h2>Rename ✏️</h2><input id=nm value="${esc(t.name).replace(/"/g,'&quot;')}"><button class="btn pri" data-a=rnok data-v=${v}>Save</button>`,'mid');setTimeout(()=>$('#nm')?.select(),50)};
+act.rnok=v=>{const n=$('#nm').value.trim();if(!n)return;D(v).name=n;save();closeM();r()};
+act.dsub=v=>{if(!confirm('Delete this deck and everything inside it?'))return;const p=par(v);p.kids=p.kids.filter(k=>k.id!=v);const i=N.indexOf(v);if(i>0)N=N.slice(0,i);save();r(1)};
+act.cfg=async()=>{let m=[];try{m=(await(await fetch('/api/models')).json()).models.map(x=>x.name)}catch{}
+ const p=db.provider||'ollama';
+ modal(`<h2>⚙️ AI provider</h2><select id=pv onchange="$('#og').style.display=this.value=='ollama'?'block':'none';$('#gg').style.display=this.value=='gemini'?'block':'none'"><option value=ollama ${p=='ollama'?'selected':''}>🏠 Local (Ollama)</option><option value=gemini ${p=='gemini'?'selected':''}>✨ Google Gemini (API key)</option></select>
+ <div id=og style="display:${p=='ollama'?'block':'none'}"><input id=md list=ml value="${db.model}" placeholder="Ollama model"><datalist id=ml>${m.map(x=>`<option>${x}`).join('')}</datalist></div>
+ <div id=gg style="display:${p=='gemini'?'block':'none'}"><input id=gk type=password value="${db.gkey||''}" placeholder="Gemini API key"><input id=gm value="${db.gmodel||'gemini-3.8-flash'}" placeholder="Gemini model"><small style="color:var(--mute)">Key stays on your PC and is only sent to Google.</small></div>
+ <button class="btn pri" data-a=savecfg>Save</button>`,'mid')};
+act.savecfg=()=>{db.provider=$('#pv').value;db.model=$('#md').value.trim()||'llama3.1:8b';db.gkey=$('#gk').value.trim();db.gmodel=$('#gm').value.trim()||'gemini-3.8-flash';save();closeM();toast('Using '+(db.provider=='gemini'?db.gmodel:db.model))};
+r(1);
+if(!db.provider&&!/^(localhost|127\.)/.test(location.hostname))setTimeout(()=>act.cfg(),500);
+</script></body></html>
