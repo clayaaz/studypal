@@ -60,7 +60,8 @@ const $=s=>document.querySelector(s),app=$('#app'),uid=()=>Math.random().toStrin
 let db=JSON.parse(localStorage.studypal||'null')||{subjects:[],model:'llama3.1:8b',xp:0};
 const save=()=>localStorage.studypal=JSON.stringify(db);
 const COL=['#c084fc','#f472b6','#60a5fa','#34d399','#fbbf24','#fb923c'];
-if(db.gmodel==='gemini-2.5-flash'){db.gmodel='gemini-3.5-flash-lite';save()}
+if(['gemini-2.5-flash','gemini-3.8-flash'].includes(db.gmodel)){db.gmodel='gemini-3.5-flash-lite';save()}
+if(/^gemini/i.test(db.model||'')){db.gmodel=db.model;db.model='llama3.1:8b';db.provider='gemini';save()}
 db.log=db.log||{};
 let N=[],P=false,tab='path',st=null,all=false;
 const mkd=(n,o={})=>({id:uid(),name:n,cards:[],imports:[],src:[],kids:[],best:null,...o});
@@ -78,31 +79,67 @@ function toast(m){const t=document.createElement('div');t.className='toast';t.te
 function modal(h,cls=''){closeM();const m=document.createElement('div');m.id='m';m.className='sheet '+cls;m.innerHTML='<div>'+h+'</div>';m.onclick=e=>{if(e.target===m)closeM()};document.body.appendChild(m)}
 const closeM=()=>$('#m')?.remove(),busy=t=>modal(`<div class="spin"></div><p style="text-align:center">${t}</p>`,'mid');
 const OLL=()=>db.ollamaUrl||'http://localhost:11434';
-async function ai(prompt,json){
+async function ai(prompt,json,search){
  if(db.provider=='gemini'){
-  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:db.gmodel||'gemini-3.5-flash-lite',key:db.gkey,prompt,json})});
+  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:'gemini',model:db.gmodel||'gemini-3.5-flash-lite',key:db.gkey,prompt,json,search})});
   const d=await r.json();if(d.error)throw Error(d.error);return d.text}
  let r;try{r=await fetch(OLL()+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:db.model,prompt,stream:false,format:json?'json':undefined,options:{temperature:.4}})})}
  catch{throw Error('Cannot reach Ollama at '+OLL()+'. Is it running? (On a hosted site see README: OLLAMA_ORIGINS)')}
- const d=await r.json();if(d.error)throw Error(d.error);return d.response}
+ const d=await r.json();if(d.error)throw Error(/not found/i.test(d.error)?d.error+' - run: ollama pull '+db.model+' (or switch to Gemini in ⚙️ settings)':d.error);return d.response}
 async function pdfText(f){const p=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;let t='';for(let i=1;i<=p.numPages;i++)t+=(await(await p.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ')+' ';return t}
-async function build(t,text,title){
- text=text.replace(/\s+/g,' ').trim();const ch=[];t.src=t.src||[];let got=0;
- for(let i=0;i<text.length&&ch.length<6;i+=5000)ch.push(text.slice(i,i+5000));
- for(let n=0;n<ch.length;n++){busy(`Writing cards ${n+1}/${ch.length}… 🪄`);
-  try{const o=JSON.parse(await ai(`You write study flashcards. From the text below return JSON: {"cards":[{"q":"question","a":"short correct answer (max 8 words)","w":["plausible wrong answer","another plausible wrong answer"]}]} with 8 cards.\nText:\n${ch[n]}`,true));
-   const cards=(o.cards||[]).filter(k=>k.q&&k.a&&Array.isArray(k.w)&&k.w.length>=2);
-   if(cards.length){const k=t.src.push(ch[n].slice(0,1500))-1;cards.forEach(c=>c.k=k);t.cards.push(...cards);got+=cards.length}
-  }catch(e){if(/Ollama|model|Gemini|API/i.test(e.message))throw e}}
- if(!got)throw Error('Could not generate cards - try a larger model')}
+let stopGen=false,cancelled=false;
+const PER=12,clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),ico=t=>({pdf:'📄',yt:'🎬',research:'🔎'}[t]||'📄');
+const pj=s=>{s=String(s).replace(/```(?:json)?/g,'');return JSON.parse(s.slice(s.indexOf('{'),s.lastIndexOf('}')+1))};
+const FMT='Return ONLY JSON: {"cards":[{"q":"question","a":"short correct answer (max 8 words)","w":["plausible wrong answer","another plausible wrong answer"]}]}.';
+function chunkText(text,size){const out=[];let i=0;while(i<text.length){let j=Math.min(text.length,i+size);if(j<text.length){const k=text.indexOf('. ',j);if(k>0&&k<j+400)j=k+1}out.push(text.slice(i,j).trim());i=j}return out.filter(x=>x.length>80)}
+function docItems(text,target){
+ text=text.replace(/\s+/g,' ').trim();const n0=target?Math.ceil(target/PER):0;
+ let ch=chunkText(text,target?clamp(text.length/n0,1500,4000):3000);const n=Math.min(ch.length,n0||150);
+ if(ch.length>n)ch=Array.from({length:n},(_,k)=>ch[Math.floor(k*ch.length/n)]);
+ return ch.map(c=>({src:c.slice(0,1500),p:`You write study flashcards. ${FMT} Write exactly ${PER} different cards covering distinct facts, definitions and concepts from the text below. Questions must stand alone (never say "the text" or "the passage").\nText:\n${c}`}))}
+async function planTopics(topic,target,sample){
+ const n=Math.max(3,Math.ceil(target/PER)),sj=root().name;
+ const ask=sample?`Here are excerpts from study material titled "${topic}" (subject: ${sj}):\n${sample}\n\nList ${n} distinct, specific subtopics to research that deepen and extend this material: related background, key concepts, worked examples and exam-relevant details that the excerpts may not fully cover. Return ONLY JSON: {"subtopics":["..."]}`
+ :`List ${n} distinct, specific subtopics that together cover "${topic}" (part of the subject "${sj}") thoroughly, from fundamentals to advanced and exam-relevant details. Return ONLY JSON: {"subtopics":["..."]}`;
+ const o=pj(await ai(ask,true,true));
+ const L=[...new Set((o.subtopics||[]).map(String))].slice(0,n);
+ if(L.length<2)throw Error('Could not plan topics - try again or use a larger model');
+ return L.map(s=>({src:`${topic} - ${s}`,search:true,p:`You are a researcher and tutor. Research the subtopic "${s}" within "${topic}" (subject: ${sj}) using accurate, up-to-date knowledge.${sample?' Go beyond the basic study material: add deeper explanations, related concepts and examples.':''} Write exactly ${PER} different study flashcards covering key facts, definitions, concepts, examples and common exam points. ${FMT} Questions must stand alone.`}))}
+async function runBatches(t,items,label){
+ t.src=t.src||[];stopGen=false;const n=items.length;
+ const seen=new Set(t.cards.map(c=>String(c.q).toLowerCase().trim())),gem=db.provider=='gemini',workers=gem?3:1;
+ let next=0,done=0,got=0,fails=0,lastErr;
+ const show=()=>{const m=$('#pm');if(m){m.textContent=`${label||'Batch'} ${done}/${n} · ${got} cards so far 🪄`;$('#pb').style.width=done/n*100+'%'}};
+ modal(`<div class=spin></div><p id=pm style="text-align:center"></p><div class=bar><i id=pb style="width:0"></i></div><p style="text-align:center;color:var(--mute)">${gem?'':'Local models take a while on big jobs. '}You can stop any time and keep what's made.</p><button class=btn data-a=cancel style="width:100%">Stop &amp; keep cards</button>`,'mid');$('#m').onclick=null;show();
+ const work=async()=>{while(!stopGen){const k=next++;if(k>=n)return;let ok=false;
+  for(let a=0;a<3&&!ok&&!stopGen;a++){try{
+   const o=pj(await ai(items[k].p,true,items[k].search));
+   const cards=(o.cards||[]).filter(c=>c&&c.q&&c.a&&Array.isArray(c.w)&&c.w.length>=2).map(c=>({q:String(c.q),a:String(c.a),w:c.w.map(String)})).filter(c=>!seen.has(c.q.toLowerCase().trim()));
+   if(cards.length){const s=t.src.push(items[k].src)-1;cards.forEach(c=>{seen.add(c.q.toLowerCase().trim());c.k=s});t.cards.push(...cards);got+=cards.length;save()}
+   ok=true}catch(e){lastErr=e;if(/Cannot reach|API key|Add your Gemini|not found/i.test(e.message)){stopGen=true;break}await new Promise(r=>setTimeout(r,1500*(a+1)))}}
+  if(!ok)fails++;done++;show();if(fails>=3&&!got)stopGen=true}};
+ await Promise.all(Array.from({length:workers},work));
+ if(!got)throw lastErr||Error('Could not generate cards - try a larger model');
+ return got}
 async function doImport(kind){
- const t=cur();if(!t)return;let text,title;
+ const t=cur();if(!t)return;const target=+($('#cnt')?.value||0),extra=+($('#rx')?.value||0);let text,title,got=0,rs=0,note='';cancelled=false;
+ const topic=kind==='research'?$('#rt').value.trim():'';if(kind==='research'&&!topic)return toast('Enter a topic to research');
  try{if(kind==='pdf'){const f=$('#f').files[0];if(!f)return toast('Choose a PDF first');busy('Reading PDF… 📄');text=await pdfText(f);title=f.name.replace(/\.pdf$/i,'')}
- else{const u=$('#yt').value.trim();if(!u)return toast('Paste a YouTube link first');busy('Fetching transcript… 🎬');const d=await(await fetch('/api/yt?url='+encodeURIComponent(u))).json();if(d.error)throw Error(d.error);text=d.text;title=d.title}
-  if(text.length<200)throw Error('Not enough text found');
-  await build(t,text,title);t.imports=t.imports||[];t.imports.push({id:uid(),type:kind,title});save();closeM();toast('Cards ready! 🎉')
+  else if(kind==='yt'){const u=$('#yt').value.trim();if(!u)return toast('Paste a YouTube link first');busy('Fetching transcript… 🎬');const d=await(await fetch('/api/yt?url='+encodeURIComponent(u))).json();if(d.error)throw Error(d.error);text=d.text;title=d.title}
+  else{busy('Planning topics… 🔎');title='AI research: '+topic;got=await runBatches(t,await planTopics(topic,target||120),'Research batch')}
+  if(kind!=='research'){
+   if(text.length<200)throw Error('Not enough text found');text=text.replace(/\s+/g,' ').trim();
+   got=await runBatches(t,docItems(text,target),'Source batch');
+   if(extra&&!cancelled){try{busy('Planning extra research… 🔎');
+    const sample=Array.from({length:8},(_,k)=>{const s=Math.floor(k*text.length/8);return text.slice(s,s+700)}).join('\n---\n');
+    rs=await runBatches(t,await planTopics(title,extra,sample),'Research batch')}catch(e){note=' (research step failed: '+e.message+')'}}}
+  t.imports=t.imports||[];t.imports.push({id:uid(),type:kind,title});save();closeM();toast(`${got+rs} cards ready${rs?` (${rs} from AI research)`:''}! 🎉${note}`)
  }catch(e){closeM();toast('⚠️ '+e.message)}r(1)}
-function addMat(){modal(`<h2>Add material</h2><p>Upload a PDF</p><input type=file id=f accept=".pdf"><button class="btn pri" data-a=imp data-v=pdf>Generate from PDF</button><p>…or paste a YouTube link</p><input id=yt placeholder="https://youtube.com/watch?v=…"><button class="btn pri" data-a=imp data-v=yt>Generate from video</button>`,'mid')}
+function addMat(){modal(`<h2>Add material</h2><p>How many cards?</p><select id=cnt><option value=0>Auto</option><option value=100>About 100</option><option value=250>About 250</option><option value=500>About 500</option><option value=1000>About 1000</option></select><p>Extra AI research cards (PDF and video only)</p><select id=rx><option value=0>None</option><option value=50>+ about 50</option><option value=100 selected>+ about 100</option><option value=250>+ about 250</option><option value=500>+ about 500</option></select>
+<p>Upload a PDF</p><input type=file id=f accept=".pdf"><button class="btn pri" data-a=imp data-v=pdf>Generate from PDF</button>
+<p>…or paste a YouTube link</p><input id=yt placeholder="https://youtube.com/watch?v=…"><button class="btn pri" data-a=imp data-v=yt>Generate from video</button>
+<p>…or let AI research a topic 🔎</p><input id=rt value="${esc(cur().name).replace(/"/g,'&quot;')}"><button class="btn pri" data-a=imp data-v=research>Research &amp; generate</button>
+<p style="color:var(--mute);font-size:13px">Research writes cards from the AI's own knowledge instead of a document. Gemini also searches the web. With PDFs and videos the AI first makes cards from your source, then researches related topics and adds extra cards beyond it. Auto = whole document, or about 120 cards for pure research.</p>`,'mid')}
 /* study */
 function startStudy(cards,title,target){
  cards=shuf(cards).map(c=>({...c,o:shuf([c.a,...c.w.slice(0,2)])}));
@@ -156,7 +193,7 @@ function path(d){
 function mat(d,R){const cs=d.cards;
  return`<div class=row><h3>Subdecks (${d.kids.length})</h3><button class=btn data-a=newsub>＋ New subdeck</button></div>`+(d.kids.length?`<div class=grid style="margin-top:12px">${d.kids.map(k=>`<div class="deck pop" data-a=into data-v=${k.id}><i style="background:${R.color}"></i><div>${esc(k.name)}<br><small>${nCards(k)} cards${k.kids.length?` · ${k.kids.length} subdecks`:''}</small></div><button class="x e" data-a=rn data-v=${k.id} title="Rename">✏️</button><button class=x data-a=dsub data-v=${k.id} title="Delete">🗑</button></div>`).join('')}</div>`:'<p style="color:var(--mute)">No subdecks yet.</p>')+
  `<h3>Cards (${cs.length})</h3>`+(cs.slice(0,all?999:5).map(c=>`<div class="list pop"><b>${esc(c.q)}</b><small>${esc(c.a)}</small></div>`).join('')||'<p style="color:var(--mute)">No cards directly in this deck yet.</p>')+(cs.length>5?`<div style="text-align:center"><button class=btn data-a=viewall>${all?'Show less ▲':'View all ▼'}</button></div>`:'')+
- `<div class=row><h3>Imports (${d.imports.length})</h3><button class="btn pri" data-a=addmat>＋ Add material</button></div>${d.imports.map(i=>`<div class="imp pop">${i.type=='pdf'?'📄':'🎬'} ${esc(i.title)}</div>`).join('')||'<p style="color:var(--mute)">No imports yet.</p>'}`}
+ `<div class=row><h3>Imports (${d.imports.length})</h3><button class="btn pri" data-a=addmat>＋ Add material</button></div>${d.imports.map(i=>`<div class="imp pop">${ico(i.type)} ${esc(i.title)}</div>`).join('')||'<p style="color:var(--mute)">No imports yet.</p>'}`}
 function study(){const n=st.cards.length;
  if(st.i>=n){setTimeout(pop,100);return`<div class=empty><span class=big>${st.hearts?'🏆':'💔'}</span><h1>${st.hearts?'Deck complete!':'Try again!'}</h1><p>${st.ok}/${n} correct · +${st.xp} XP</p><button class="btn pri" data-a=done>Back to path</button></div>`}
  const c=st.cards[st.i];
@@ -196,13 +233,14 @@ act.mksub=()=>{const n=$('#nm').value.trim();if(!n)return;const t=mkd(n);cur().k
 act.rn=v=>{const t=D(v);modal(`<h2>Rename ✏️</h2><input id=nm value="${esc(t.name).replace(/"/g,'&quot;')}"><button class="btn pri" data-a=rnok data-v=${v}>Save</button>`,'mid');setTimeout(()=>$('#nm')?.select(),50)};
 act.rnok=v=>{const n=$('#nm').value.trim();if(!n)return;D(v).name=n;save();closeM();r()};
 act.dsub=v=>{if(!confirm('Delete this deck and everything inside it?'))return;const p=par(v);p.kids=p.kids.filter(k=>k.id!=v);const i=N.indexOf(v);if(i>0)N=N.slice(0,i);save();r(1)};
+act.cancel=()=>{stopGen=true;cancelled=true};
 act.cfg=async()=>{let m=[];try{m=(await(await fetch('/api/models')).json()).models.map(x=>x.name)}catch{}
- const p=db.provider||'ollama';
+ const p=db.provider||(/^(localhost|127\.)/.test(location.hostname)?'ollama':'gemini');
  modal(`<h2>⚙️ AI provider</h2><select id=pv onchange="$('#og').style.display=this.value=='ollama'?'block':'none';$('#gg').style.display=this.value=='gemini'?'block':'none'"><option value=ollama ${p=='ollama'?'selected':''}>🏠 Local (Ollama)</option><option value=gemini ${p=='gemini'?'selected':''}>✨ Google Gemini (API key)</option></select>
  <div id=og style="display:${p=='ollama'?'block':'none'}"><input id=md list=ml value="${db.model}" placeholder="Ollama model"><datalist id=ml>${m.map(x=>`<option>${x}`).join('')}</datalist></div>
  <div id=gg style="display:${p=='gemini'?'block':'none'}"><input id=gk type=password value="${db.gkey||''}" placeholder="Gemini API key"><input id=gm value="${db.gmodel||'gemini-3.5-flash-lite'}" placeholder="Gemini model"><small style="color:var(--mute)">Key stays on your PC and is only sent to Google.</small></div>
  <button class="btn pri" data-a=savecfg>Save</button>`,'mid')};
-act.savecfg=()=>{db.provider=$('#pv').value;db.model=$('#md').value.trim()||'llama3.1:8b';db.gkey=$('#gk').value.trim();db.gmodel=$('#gm').value.trim()||'gemini-3.5-flash-lite';save();closeM();toast('Using '+(db.provider=='gemini'?db.gmodel:db.model))};
+act.savecfg=()=>{db.provider=$('#pv').value;db.model=$('#md').value.trim()||'llama3.1:8b';db.gkey=$('#gk').value.trim();db.gmodel=$('#gm').value.trim()||'gemini-3.5-flash-lite';if(/^gemini/i.test(db.model)){db.gmodel=db.model;db.model='llama3.1:8b';db.provider='gemini'}save();closeM();toast('Using '+(db.provider=='gemini'?db.gmodel:db.model))};
 r(1);
 if(!db.provider&&!/^(localhost|127\.)/.test(location.hostname))setTimeout(()=>act.cfg(),500);
 </script></body></html>

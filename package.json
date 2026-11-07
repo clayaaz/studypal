@@ -3,7 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "description": "AI flashcard study app with nested decks, PDF and YouTube import, local or Gemini AI.",
-  "scripts": { "start": "node local/server.js" },
-  "dependencies": { "youtube-transcript": "^1.2.1" },
-  "engines": { "node": ">=18" }
+  "scripts": {
+    "start": "node local/server.js"
+  },
+  "dependencies": {
+    "youtube-transcript": "^1.3.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }

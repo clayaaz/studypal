@@ -7,15 +7,8 @@ http.createServer(async(req,res)=>{
  const u=new URL(req.url,'http://x');
  try{
   if(u.pathname==='/api/chat'&&req.method==='POST'){
-   let b='';for await(const c of req)b+=c;const{provider,model,key,prompt,json}=JSON.parse(b);
-   if(provider==='gemini'){
-    const k=key||process.env.GEMINI_API_KEY;if(!k)throw new Error('Add your Gemini API key in settings');
-    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',
-     headers:{'Content-Type':'application/json','x-goog-api-key':k},
-     body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:.4,...(json?{responseMimeType:'application/json'}:{})}})});
-    const d=await r.json();if(d.error)throw new Error('Gemini: '+d.error.message);
-    return send(res,200,{text:(d.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('')});
-   }
+   let b='';for await(const c of req)b+=c;const{provider,model,key,prompt,json,search}=JSON.parse(b);
+   if(provider==='gemini')return send(res,200,{text:await require('../api/_gemini.js')({model,key:key||process.env.GEMINI_API_KEY,prompt,json,search})});
    const r=await fetch(OLL+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({model,prompt,stream:false,format:json?'json':undefined,options:{temperature:.4}})});
    const d=await r.json();if(d.error)throw new Error(d.error);return send(res,200,{text:d.response});
