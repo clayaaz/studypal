@@ -200,9 +200,9 @@ act.cfg=async()=>{let m=[];try{m=(await(await fetch('/api/models')).json()).mode
  const p=db.provider||'ollama';
  modal(`<h2>⚙️ AI provider</h2><select id=pv onchange="$('#og').style.display=this.value=='ollama'?'block':'none';$('#gg').style.display=this.value=='gemini'?'block':'none'"><option value=ollama ${p=='ollama'?'selected':''}>🏠 Local (Ollama)</option><option value=gemini ${p=='gemini'?'selected':''}>✨ Google Gemini (API key)</option></select>
  <div id=og style="display:${p=='ollama'?'block':'none'}"><input id=md list=ml value="${db.model}" placeholder="Ollama model"><datalist id=ml>${m.map(x=>`<option>${x}`).join('')}</datalist></div>
- <div id=gg style="display:${p=='gemini'?'block':'none'}"><input id=gk type=password value="${db.gkey||''}" placeholder="Gemini API key"><input id=gm value="${db.gmodel||'gemini-3.8-flash'}" placeholder="Gemini model"><small style="color:var(--mute)">Key stays on your PC and is only sent to Google.</small></div>
+ <div id=gg style="display:${p=='gemini'?'block':'none'}"><input id=gk type=password value="${db.gkey||''}" placeholder="Gemini API key"><input id=gm value="${db.gmodel||'gemini-3.5-flash-lite'}" placeholder="Gemini model"><small style="color:var(--mute)">Key stays on your PC and is only sent to Google.</small></div>
  <button class="btn pri" data-a=savecfg>Save</button>`,'mid')};
-act.savecfg=()=>{db.provider=$('#pv').value;db.model=$('#md').value.trim()||'llama3.1:8b';db.gkey=$('#gk').value.trim();db.gmodel=$('#gm').value.trim()||'gemini-3.8-flash';save();closeM();toast('Using '+(db.provider=='gemini'?db.gmodel:db.model))};
+act.savecfg=()=>{db.provider=$('#pv').value;db.model=$('#md').value.trim()||'llama3.1:8b';db.gkey=$('#gk').value.trim();db.gmodel=$('#gm').value.trim()||'gemini-3.5-flash-lite';save();closeM();toast('Using '+(db.provider=='gemini'?db.gmodel:db.model))};
 r(1);
 if(!db.provider&&!/^(localhost|127\.)/.test(location.hostname))setTimeout(()=>act.cfg(),500);
 </script></body></html>
