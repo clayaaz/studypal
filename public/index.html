@@ -80,7 +80,7 @@ const closeM=()=>$('#m')?.remove(),busy=t=>modal(`<div class="spin"></div><p sty
 const OLL=()=>db.ollamaUrl||'http://localhost:11434';
 async function ai(prompt,json){
  if(db.provider=='gemini'){
-  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:db.gmodel||'gemini-3.8-flash',key:db.gkey,prompt,json})});
+  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:db.gmodel||'gemini-3.5-flash-lite',key:db.gkey,prompt,json})});
   const d=await r.json();if(d.error)throw Error(d.error);return d.text}
  let r;try{r=await fetch(OLL()+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:db.model,prompt,stream:false,format:json?'json':undefined,options:{temperature:.4}})})}
  catch{throw Error('Cannot reach Ollama at '+OLL()+'. Is it running? (On a hosted site see README: OLLAMA_ORIGINS)')}
